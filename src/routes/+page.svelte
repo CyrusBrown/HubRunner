@@ -68,18 +68,6 @@
 </script>
 
 <main class="container">
-  <div class="alliance">
-    <h2 class="label-red">RED ALLIANCE</h2>
-    <div class="score">{red_score}</div>
-    <div class="controls">
-      <button onclick={reset_red}>Reset Score</button>
-      <button onclick={() => toggle_motors('red')} class:active={red_motors_on}>
-        Motors: {red_motors_on ? 'ON' : 'OFF'}
-      </button>
-    </div>
-  </div>
-
-  <div class="divider"></div>
 
   <div class="alliance">
     <h2 class="label-blue">BLUE ALLIANCE</h2>
@@ -91,6 +79,20 @@
       </button>
     </div>
   </div>
+
+  <div class="divider"></div>
+
+  <div class="alliance">
+    <h2 class="label-red">RED ALLIANCE</h2>
+    <div class="score">{red_score}</div>
+    <div class="controls">
+      <button onclick={reset_red}>Reset Score</button>
+      <button onclick={() => toggle_motors('red')} class:active={red_motors_on}>
+        Motors: {red_motors_on ? 'ON' : 'OFF'}
+      </button>
+    </div>
+  </div>
+
 </main>
 
 <style>
