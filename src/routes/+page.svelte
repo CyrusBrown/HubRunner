@@ -32,7 +32,7 @@
       ws.addListener((msg) => {
         try {
           const parsed = JSON.parse(msg.data as string);
-          if (parsed.data?.event === 'INTERNAL_COUNT') {
+          if (parsed.data?.event === 'FUEL_DETECTED') {
             if (parsed.device_id === DEV_FUEL_RED) red_raw_count = parsed.data.count;
             if (parsed.device_id === DEV_FUEL_BLUE) blue_raw_count = parsed.data.count;
           }
