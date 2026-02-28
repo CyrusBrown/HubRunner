@@ -1,22 +1,30 @@
+
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import WebSocket from '@tauri-apps/plugin-websocket';
 
+  // Device IDs
   const DEV_FUEL_RED = 'FUEL_SENSOR_RED';
   const DEV_FUEL_BLUE = 'FUEL_SENSOR_BLUE';
   const DEV_MOTORS_RED = 'HUB_MOTORS_RED';
   const DEV_MOTORS_BLUE = 'HUB_MOTORS_BLUE';
 
+  // Commands Sent TO Devices
+  const CMD_GET_COUNTS = 'GET_INTERNAL_COUNT';
+  const CMD_RESET_COUNTS = 'RESET_INTERNAL_COUNT';
+  const CMD_MOTORS_ON = 'ALL_MOTORS_ON';
+  const CMD_MOTORS_OFF = 'ALL_MOTORS_OFF';
+
+  // Events Received FROM Devices
+  const EVT_FUEL_DETECTED = 'FUEL_DETECTED';
+  const EVT_INTERNAL_COUNTS = 'INTERNAL_COUNT';
+
   let ws: WebSocket | null = null;
   let poll_interval: number;
 
-  let red_raw_count = $state(0);
-  let blue_raw_count = $state(0);
-  let red_offset = $state(0);
-  let blue_offset = $state(0);
-
-  let red_score = $derived(Math.max(0, red_raw_count - red_offset));
-  let blue_score = $derived(Math.max(0, blue_raw_count - blue_offset));
+  // Actual display scores
+  let red_score = $state(0);
+  let blue_score = $state(0);
 
   let red_motors_on = $state(false);
   let blue_motors_on = $state(false);
@@ -29,20 +37,33 @@
   onMount(async () => {
     try {
       ws = await WebSocket.connect('ws://10.0.100.5:8000/connect');
+      
       ws.addListener((msg) => {
         try {
           const parsed = JSON.parse(msg.data as string);
-          if (parsed.data?.event === 'FUEL_DETECTED') {
-            if (parsed.device_id === DEV_FUEL_RED) red_raw_count = parsed.data.count;
-            if (parsed.device_id === DEV_FUEL_BLUE) blue_raw_count = parsed.data.count;
+          const event = parsed.data?.event;
+
+          // 1. Live increment (Fast UI update)
+          if (event === EVT_FUEL_DETECTED) {
+            if (parsed.device_id === DEV_FUEL_RED) red_score += parsed.data.count;
+            if (parsed.device_id === DEV_FUEL_BLUE) blue_score += parsed.data.count;
+          } 
+          // 2. Authoritative Sync (Overrides local count with hardware truth)
+          else if (event === EVT_INTERNAL_COUNTS) {
+            if (parsed.device_id === DEV_FUEL_RED) red_score = parsed.data.count;
+            if (parsed.device_id === DEV_FUEL_BLUE) blue_score = parsed.data.count;
           }
-        } catch (e) {}
+        } catch (e) {
+          // Ignore parsing errors for simplicity
+        }
       });
 
+      // Poll every 3 seconds for the true internal count
       poll_interval = window.setInterval(() => {
-        send_ws(DEV_FUEL_RED, 'GET_INTERNAL_COUNT');
-        send_ws(DEV_FUEL_BLUE, 'GET_INTERNAL_COUNT');
-      }, 1000);
+        send_ws(DEV_FUEL_RED, CMD_GET_COUNTS);
+        send_ws(DEV_FUEL_BLUE, CMD_GET_COUNTS);
+      }, 3000);
+
     } catch (err) {
       console.error("Connection failed", err);
     }
@@ -53,16 +74,25 @@
     if (ws) ws.disconnect();
   });
 
-  const reset_red = () => red_offset = red_raw_count;
-  const reset_blue = () => blue_offset = blue_raw_count;
+  // Reset Commands
+  function reset_red() {
+    red_score = 0; // Optimistic UI update
+    send_ws(DEV_FUEL_RED, CMD_RESET_COUNTS);
+  }
 
+  function reset_blue() {
+    blue_score = 0; // Optimistic UI update
+    send_ws(DEV_FUEL_BLUE, CMD_RESET_COUNTS);
+  }
+
+  // Motor Commands
   function toggle_motors(alliance: 'red' | 'blue') {
     if (alliance === 'red') {
       red_motors_on = !red_motors_on;
-      send_ws(DEV_MOTORS_RED, red_motors_on ? 'ALL_MOTORS_ON' : 'ALL_MOTORS_OFF');
+      send_ws(DEV_MOTORS_RED, red_motors_on ? CMD_MOTORS_ON : CMD_MOTORS_OFF);
     } else {
       blue_motors_on = !blue_motors_on;
-      send_ws(DEV_MOTORS_BLUE, blue_motors_on ? 'ALL_MOTORS_ON' : 'ALL_MOTORS_OFF');
+      send_ws(DEV_MOTORS_BLUE, blue_motors_on ? CMD_MOTORS_ON : CMD_MOTORS_OFF);
     }
   }
 </script>
@@ -181,3 +211,4 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
   }
 </style>
+
