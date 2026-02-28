@@ -40,8 +40,8 @@
       });
 
       poll_interval = window.setInterval(() => {
-        send_ws(DEV_FUEL_RED, 'GET_INTERNAL_COUNTS');
-        send_ws(DEV_FUEL_BLUE, 'GET_INTERNAL_COUNTS');
+        send_ws(DEV_FUEL_RED, 'GET_INTERNAL_COUNT');
+        send_ws(DEV_FUEL_BLUE, 'GET_INTERNAL_COUNT');
       }, 1000);
     } catch (err) {
       console.error("Connection failed", err);
